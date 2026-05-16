@@ -1,0 +1,9 @@
+# Core positioning and browser GUI use only Python standard-library modules.
+#
+# Note: the GUI uses tkinter. On some Linux/Raspberry Pi OS installations,
+# tkinter is provided by the system package manager instead of pip:
+#   sudo apt install python3-tk
+#
+# Optional: required only when reading ToF sensors through --tof-top serial
+# or --tof-bottom serial in scripts/record_measurements.py.
+pyserial>=3.5
