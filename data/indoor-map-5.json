@@ -1,0 +1,209 @@
+{
+  "map": {
+    "id": 5,
+    "name": "Test 9*9",
+    "rows": 3,
+    "cols": 3,
+    "scans_per_cell": 3
+  },
+  "fingerprints": [
+    {
+      "row": 0,
+      "col": 0,
+      "ap_data": [
+        {
+          "ssid": "infra_3",
+          "rssi_avg": -10.67
+        },
+        {
+          "ssid": "infra_4",
+          "rssi_avg": -30.33
+        },
+        {
+          "ssid": "infra_2",
+          "rssi_avg": -37.33
+        },
+        {
+          "ssid": "infra_1",
+          "rssi_avg": -47
+        }
+      ]
+    },
+    {
+      "row": 0,
+      "col": 1,
+      "ap_data": [
+        {
+          "ssid": "infra_4",
+          "rssi_avg": -27
+        },
+        {
+          "ssid": "infra_3",
+          "rssi_avg": -34
+        },
+        {
+          "ssid": "infra_2",
+          "rssi_avg": -38.33
+        },
+        {
+          "ssid": "infra_1",
+          "rssi_avg": -41.67
+        }
+      ]
+    },
+    {
+      "row": 0,
+      "col": 2,
+      "ap_data": [
+        {
+          "ssid": "infra_4",
+          "rssi_avg": -31.33
+        },
+        {
+          "ssid": "infra_2",
+          "rssi_avg": -35.67
+        },
+        {
+          "ssid": "infra_3",
+          "rssi_avg": -39.67
+        },
+        {
+          "ssid": "infra_1",
+          "rssi_avg": -50.67
+        }
+      ]
+    },
+    {
+      "row": 1,
+      "col": 0,
+      "ap_data": [
+        {
+          "ssid": "infra_2",
+          "rssi_avg": -31
+        },
+        {
+          "ssid": "infra_4",
+          "rssi_avg": -32
+        },
+        {
+          "ssid": "infra_1",
+          "rssi_avg": -38.33
+        },
+        {
+          "ssid": "infra_3",
+          "rssi_avg": -39.33
+        }
+      ]
+    },
+    {
+      "row": 1,
+      "col": 1,
+      "ap_data": [
+        {
+          "ssid": "infra_2",
+          "rssi_avg": -27.67
+        },
+        {
+          "ssid": "infra_4",
+          "rssi_avg": -31.67
+        },
+        {
+          "ssid": "infra_1",
+          "rssi_avg": -40.67
+        },
+        {
+          "ssid": "infra_3",
+          "rssi_avg": -45
+        }
+      ]
+    },
+    {
+      "row": 1,
+      "col": 2,
+      "ap_data": [
+        {
+          "ssid": "infra_2",
+          "rssi_avg": -32
+        },
+        {
+          "ssid": "infra_4",
+          "rssi_avg": -32
+        },
+        {
+          "ssid": "infra_1",
+          "rssi_avg": -43.67
+        },
+        {
+          "ssid": "infra_3",
+          "rssi_avg": -47.33
+        }
+      ]
+    },
+    {
+      "row": 2,
+      "col": 0,
+      "ap_data": [
+        {
+          "ssid": "infra_2",
+          "rssi_avg": -27.67
+        },
+        {
+          "ssid": "infra_1",
+          "rssi_avg": -38.33
+        },
+        {
+          "ssid": "infra_4",
+          "rssi_avg": -39.33
+        },
+        {
+          "ssid": "infra_3",
+          "rssi_avg": -47
+        }
+      ]
+    },
+    {
+      "row": 2,
+      "col": 1,
+      "ap_data": [
+        {
+          "ssid": "infra_2",
+          "rssi_avg": -21.67
+        },
+        {
+          "ssid": "infra_1",
+          "rssi_avg": -32.67
+        },
+        {
+          "ssid": "infra_4",
+          "rssi_avg": -42.33
+        },
+        {
+          "ssid": "infra_3",
+          "rssi_avg": -45
+        }
+      ]
+    },
+    {
+      "row": 2,
+      "col": 2,
+      "ap_data": [
+        {
+          "ssid": "infra_1",
+          "rssi_avg": -12
+        },
+        {
+          "ssid": "infra_2",
+          "rssi_avg": -27
+        },
+        {
+          "ssid": "infra_4",
+          "rssi_avg": -38
+        },
+        {
+          "ssid": "infra_3",
+          "rssi_avg": -52
+        }
+      ]
+    }
+  ]
+}

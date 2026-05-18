@@ -67,6 +67,179 @@ python3 scripts/build_radio_map.py data/raw_measurements.csv data/radio_map_lab.
 
 產生每個 reference point 的 median radio map。ToF 欄位會保留在 raw data 中供分析，但不會被當成 Wi-Fi RSSI fingerprint 欄位。
 
+## 匯入雲端 UTM Fingerprint
+
+如果雲端 UTM 系統輸出 JSON，格式包含 `map.rows`、`map.cols` 與每格的 `fingerprints[].ap_data[].rssi_avg`，本地端可以直接讀取。系統會將 `row/col` 轉成 cell 中心座標：
+
+- `col -> x`
+- `row -> y`
+- 預設場地大小：15 m × 9 m
+
+例如 2 × 2 map 會轉成：
+
+```text
+row=0 col=0 -> x=3.75  y=2.25
+row=0 col=1 -> x=11.25 y=2.25
+row=1 col=0 -> x=3.75  y=6.75
+row=1 col=1 -> x=11.25 y=6.75
+```
+
+直接用 JSON 啟動 Web GUI：
+
+```bash
+python3 -m ips_lbs.web_gui --radio-map data/utm_fingerprint_sample.json
+```
+
+或先轉成 CSV 方便檢查：
+
+```bash
+python3 scripts/utm_json_to_radio_map.py \
+  data/utm_fingerprint_sample.json \
+  data/radio_map_from_utm.csv
+```
+
+如果場地尺寸不同：
+
+```bash
+python3 -m ips_lbs.web_gui \
+  --radio-map data/utm_fingerprint_sample.json \
+  --room-length 15 \
+  --room-width 9
+```
+
+快速跑一次 WKNN 模擬定位：
+
+```bash
+python3 scripts/locate_once.py --radio-map data/utm_fingerprint_sample.json --k 3
+```
+
+使用雲端建立的 `indoor-map-5.json`，並用當前 Wi-Fi RSSI 推測所在 cell：
+
+```bash
+python3 scripts/locate_live.py \
+  --radio-map data/indoor-map-5.json \
+  --interface wlan1 \
+  --samples 5 \
+  --k 3
+```
+
+如果要先手動貼一組 RSSI 測 WKNN：
+
+```bash
+python3 scripts/locate_live.py \
+  --radio-map data/indoor-map-5.json \
+  --rssi infra_1=-38 infra_2=-28 infra_3=-45 infra_4=-42
+```
+
+## WKNN 參數訓練與優化
+
+`data/indoor-map-11 (4).json` 是實測 fingerprint 資料，可以先轉成 CSV 方便檢查：
+
+```bash
+python3 scripts/utm_json_to_radio_map.py \
+  "data/indoor-map-11 (4).json" \
+  data/radio_map_indoor_map_11.csv
+```
+
+WKNN 本身不需要模型檔訓練；訓練資料就是 radio map。參數優化可以用 leave-one-out validation：
+
+```bash
+python3 scripts/tune_wknn.py \
+  "data/indoor-map-11 (4).json" \
+  --output data/wknn_tuning_indoor_map_11.csv
+```
+
+目前這份 312 格實測資料的擴大搜尋最佳結果：
+
+```text
+k=12
+weight_power=2.0
+missing_rssi=-110
+region_filter=off
+mean_error=2.426 m
+median_error=2.032 m
+p90_error=4.936 m
+```
+
+也可以把場地切成 3 × 3 九宮格區域，讓系統先選出最相近的幾個 zone，再只在候選 zone 中做 WKNN：
+
+```bash
+python3 scripts/utm_json_to_radio_map.py \
+  "data/indoor-map-11 (4).json" \
+  data/radio_map_indoor_map_11_zones.csv \
+  --area-mode zone-grid \
+  --area-prefix zone \
+  --zone-rows 3 \
+  --zone-cols 3
+```
+
+九宮格分區名稱從左上到右下依序是：
+
+```text
+zone_A | zone_B | zone_C
+zone_D | zone_E | zone_F
+zone_G | zone_H | zone_I
+```
+
+目前 3 × 3 zone + Top-3 zone WKNN 的最佳搜尋結果：
+
+```text
+k=12
+region_k=15
+region_count=3
+weight_power=1.5
+missing_rssi=-110
+region_filter=on
+mean_error=2.389 m
+median_error=1.909 m
+p90_error=4.821 m
+```
+
+套用最佳參數做一次手動 RSSI 定位：
+
+```bash
+python3 scripts/locate_live.py \
+  --radio-map "data/indoor-map-11 (4).json" \
+  --area-mode zone-grid \
+  --area-prefix zone \
+  --zone-rows 3 \
+  --zone-cols 3 \
+  --k 12 \
+  --region-k 15 \
+  --region-count 3 \
+  --weight-power 1.5 \
+  --missing-rssi -110 \
+  --rssi infra_1=-38 infra_2=-28 infra_3=-45 infra_4=-42
+```
+
+如果實測結果有固定方向偏移，可以用已知點做 offset 校正。計算方式是：
+
+```text
+x_offset = 實際 x - 推論 x
+y_offset = 實際 y - 推論 y
+```
+
+再把 offset 套到實測推論：
+
+```bash
+python3 scripts/locate_live.py \
+  --radio-map "data/indoor-map-11 (4).json" \
+  --area-mode zone-grid \
+  --area-prefix zone \
+  --zone-rows 3 \
+  --zone-cols 3 \
+  --interface wlan1 \
+  --samples 8 \
+  --window 8 \
+  --k 12 \
+  --region-k 15 \
+  --region-count 3 \
+  --weight-power 1.5 \
+  --missing-rssi -110 \
+  --x-offset 0.0 \
+  --y-offset 0.0
+```
+
 ## 實測資料採集
 
 場地設定：
