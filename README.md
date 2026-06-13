@@ -69,19 +69,21 @@ python3 scripts/build_radio_map.py data/raw_measurements.csv data/radio_map_lab.
 
 ## 匯入雲端 UTM Fingerprint
 
-如果雲端 UTM 系統輸出 JSON，格式包含 `map.rows`、`map.cols` 與每格的 `fingerprints[].ap_data[].rssi_avg`，本地端可以直接讀取。系統會將 `row/col` 轉成 cell 中心座標：
+如果雲端 UTM 系統輸出 JSON，格式包含 `map.rows`、`map.cols` 與每格的 `fingerprints[].ap_data[].rssi_avg`，本地端可以直接讀取。系統會將 `row/col` 轉成絕對座標：
 
-- `col -> x`
-- `row -> y`
-- 預設場地大小：15 m × 9 m
+- `row -> x`
+- `col -> y`
+- `row=0, col=0 -> x=0, y=0`
+- 每增加一格為 0.6 m
+- 目前場景長邊 23 格對應 X 軸，短邊 12 格對應 Y 軸
 
 例如 2 × 2 map 會轉成：
 
 ```text
-row=0 col=0 -> x=3.75  y=2.25
-row=0 col=1 -> x=11.25 y=2.25
-row=1 col=0 -> x=3.75  y=6.75
-row=1 col=1 -> x=11.25 y=6.75
+row=0 col=0 -> x=0.00 y=0.00
+row=0 col=1 -> x=0.00 y=0.60
+row=1 col=0 -> x=0.60 y=0.00
+row=1 col=1 -> x=0.60 y=0.60
 ```
 
 直接用 JSON 啟動 Web GUI：
@@ -98,14 +100,7 @@ python3 scripts/utm_json_to_radio_map.py \
   data/radio_map_from_utm.csv
 ```
 
-如果場地尺寸不同：
-
-```bash
-python3 -m ips_lbs.web_gui \
-  --radio-map data/utm_fingerprint_sample.json \
-  --room-length 15 \
-  --room-width 9
-```
+JSON 匯入時會直接使用 0.6 m 格距計算絕對座標，`--room-length` 與 `--room-width` 不再影響 UTM JSON 的座標換算。
 
 快速跑一次 WKNN 模擬定位：
 

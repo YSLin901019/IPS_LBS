@@ -16,6 +16,7 @@ NON_RSSI_COLUMNS = {
     "tof_top_m",
     "tof_bottom_m",
 }
+GRID_SPACING_M = 0.6
 
 
 class RadioMap:
@@ -184,8 +185,6 @@ def points_from_utm_json(
     if zone_rows <= 0 or zone_cols <= 0:
         raise ValueError("zone_rows and zone_cols must be positive")
 
-    cell_width = room_length / cols
-    cell_height = room_width / rows
     points: List[ReferencePoint] = []
     for fingerprint in data.get("fingerprints", []):
         row = int(fingerprint["row"])
@@ -214,8 +213,9 @@ def points_from_utm_json(
                     zone_rows,
                     zone_cols,
                 ),
-                x=(col + 0.5) * cell_width,
-                y=(row + 0.5) * cell_height,
+                # Current map uses row along the long X axis and col along Y.
+                x=row * GRID_SPACING_M,
+                y=col * GRID_SPACING_M,
                 rssi=rssi,
             )
         )

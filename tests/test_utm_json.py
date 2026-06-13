@@ -8,13 +8,13 @@ from ips_lbs.wknn import WKNNLocalizer
 
 
 class UTMJsonTests(unittest.TestCase):
-    def test_utm_json_converts_cells_to_center_coordinates(self):
+    def test_utm_json_converts_grid_indices_to_absolute_coordinates(self):
         data = {
-            "map": {"id": 3, "name": "Test", "rows": 2, "cols": 2, "scans_per_cell": 2},
+            "map": {"id": 3, "name": "Test", "rows": 24, "cols": 13, "scans_per_cell": 2},
             "fingerprints": [
                 {
-                    "row": 0,
-                    "col": 1,
+                    "row": 23,
+                    "col": 12,
                     "ap_data": [
                         {"ssid": "infra_1", "rssi_avg": -42.5},
                         {"ssid": "infra_2", "rssi_avg": -25.5},
@@ -31,9 +31,9 @@ class UTMJsonTests(unittest.TestCase):
 
         self.assertEqual(len(radio_map.points), 1)
         point = radio_map.points[0]
-        self.assertEqual(point.point_id, "R00C01")
-        self.assertEqual(point.x, 11.25)
-        self.assertEqual(point.y, 2.25)
+        self.assertEqual(point.point_id, "R23C12")
+        self.assertAlmostEqual(point.x, 13.8)
+        self.assertAlmostEqual(point.y, 7.2)
         self.assertEqual(point.rssi["infra_2"], -25.5)
 
     def test_wknn_can_estimate_from_utm_json_radio_map(self):

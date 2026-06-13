@@ -1,29 +1,15 @@
 #!/usr/bin/env python3
-"""
-Live WiFi positioning — scans RSSI, runs WKNN, and optionally reports
-the estimated cell to the SkyNode UTM backend in a loop.
-
-Usage (one-shot, no reporting):
-    python scripts/locate_live.py --radio-map data/indoor-map-11.json
-
-Usage (continuous loop, report to UTM):
-    python scripts/locate_live.py \
-        --radio-map data/indoor-map-11.json \
-        --map-id 11 \
-        --utm-url https://ky-ode.h03895.workers.dev \
-        --utm-key YOUR_DEVICE_API_KEY \
-        --loop --loop-interval 5
-"""
 from __future__ import annotations
 
 import argparse
+import json as _json
+import random
 import re
 import sys
 import time
-import json as _json
 import urllib.request
 from pathlib import Path
-import random
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from ips_lbs.filters import MedianMovingFilter
@@ -116,9 +102,13 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Estimate the current location from live or manual RSSI readings."
     )
-    parser.add_argument("--radio-map", default="data/indoor-map-11 (4).json")
+    parser.add_argument("--radio-map", default="/home/duckie/IPS_LBS/data/indoor-map-5.json")
     parser.add_argument("--room-length", type=float, default=15.0)
     parser.add_argument("--room-width", type=float, default=9.0)
+    parser.add_argument("--area-mode", choices=("cell", "zone-grid"), default="cell")
+    parser.add_argument("--area-prefix", default="cell")
+    parser.add_argument("--zone-rows", type=int, default=3)
+    parser.add_argument("--zone-cols", type=int, default=3)
     parser.add_argument("--interface", default="wlan1")
     parser.add_argument("--scan-command", choices=("iw", "iwlist", "mock"), default="iw")
     parser.add_argument("--no-sudo", action="store_true")
@@ -126,8 +116,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--rssi", nargs="*", default=[])
     parser.add_argument("--samples", type=int, default=5)
     parser.add_argument("--interval", type=float, default=0.5)
-    parser.add_argument("--k", type=int, default=5)
+    parser.add_argument("--k", type=int, default=3)
     parser.add_argument("--region-k", type=int, default=5)
+    parser.add_argument("--region-count", type=int, default=1)
     parser.add_argument("--missing-rssi", type=float, default=-100.0)
     parser.add_argument("--weight-power", type=float, default=1.0)
     parser.add_argument("--no-region-filter", action="store_true")
@@ -135,42 +126,33 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--x-offset", type=float, default=0.0)
     parser.add_argument("--y-offset", type=float, default=0.0)
     # UTM reporting
-    parser.add_argument("--utm-url", default="https://skynode-utm-api.h03895-64272.workers.dev", help="SkyNode UTM backend URL, e.g. https://ky-ode.h03895.workers.dev")
-    parser.add_argument("--utm-key", default="sk_9d2af2ee656168fc32fc08ddadb3a1f4327e8d92c50d69f371bbf6758011109c", help="Device API key (Bearer token)")
-    parser.add_argument("--map-id", type=int, default=None, help="Indoor map ID to report position to")
+    parser.add_argument("--utm-url", default="https://skynode-utm-api.h03895-64272.workers.dev")
+    parser.add_argument("--utm-key", default="")
+    parser.add_argument("--map-id", type=int, default=None)
+    parser.add_argument("--z", type=float, default=1.5, help="Fixed altitude (m) reported to UTM")
     # Loop mode
-    parser.add_argument("--loop", action="store_true", help="Keep scanning and reporting in a loop")
-    parser.add_argument("--loop-interval", type=float, default=5.0, help="Seconds between loop iterations (default: 5)")
+    parser.add_argument("--loop", action="store_true")
+    parser.add_argument("--loop-interval", type=float, default=5.0)
     return parser.parse_args()
 
 
 def run_estimate(args, localizer, rssi_filter, scanner=None):
-    """Run one scan+estimate cycle. Returns the estimate object."""
     if args.rssi:
-        filtered = rssi_filter.update(parse_rssi_pairs(args.rssi))
-    else:
-        try:
-            filtered = {}
-            for index in range(args.samples):
-                sample = scanner.scan()
-                filtered = rssi_filter.update(sample)
-                visible = ", ".join(
-                    f"{ssid}={sample[ssid]:.1f}" for ssid in sorted(sample)
-                )
-                print(f"  sample {index + 1}/{args.samples}: {visible or 'no target SSID'}")
-                if index < args.samples - 1:
-                    time.sleep(args.interval)
-        except WifiScanError as exc:
-            print(exc)
-            print()
-            print("Try:")
-            print(f"  python3 scripts/check_devices.py --interface {args.interface}")
-            print(
-                f"  python3 scripts/check_devices.py --interface {args.interface} --command iwlist"
-            )
-            raise SystemExit(3) from exc
-
-    return localizer.estimate(filtered)
+        return localizer.estimate(rssi_filter.update(parse_rssi_pairs(args.rssi)))
+    try:
+        filtered = {}
+        for index in range(args.samples):
+            sample = scanner.scan()
+            filtered = rssi_filter.update(sample)
+            visible = ", ".join(f"{s}={sample[s]:.1f}" for s in sorted(sample))
+            print(f"  sample {index + 1}/{args.samples}: {visible or 'no target SSID'}")
+            if index < args.samples - 1:
+                time.sleep(args.interval)
+        return localizer.estimate(filtered)
+    except WifiScanError as exc:
+        print(exc)
+        print(f"\nTry: python3 scripts/check_devices.py --interface {args.interface}")
+        raise SystemExit(3) from exc
 
 
 def main() -> None:
@@ -179,11 +161,16 @@ def main() -> None:
         args.radio_map,
         room_length=args.room_length,
         room_width=args.room_width,
+        area_prefix=args.area_prefix,
+        area_mode=args.area_mode,
+        zone_rows=args.zone_rows,
+        zone_cols=args.zone_cols,
     )
     localizer = WKNNLocalizer(
         radio_map,
         k=args.k,
         region_candidate_count=args.region_k,
+        region_count=args.region_count,
         missing_rssi=args.missing_rssi,
         weight_power=args.weight_power,
         use_region_filter=not args.no_region_filter,
@@ -205,15 +192,11 @@ def main() -> None:
     scanner = None
     if not args.rssi:
         scanner = WifiSsidScanner(
-            args.interface,
-            args.ssid,
+            args.interface, args.ssid,
             command=args.scan_command,
             use_sudo=not args.no_sudo,
         )
-        print(
-            f"Scanning current RSSI from {args.interface} "
-            f"({args.samples} samples, command={args.scan_command})"
-        )
+        print(f"Scanning from {args.interface} ({args.samples} samples, command={args.scan_command})")
 
     iteration = 0
     try:
@@ -232,7 +215,7 @@ def main() -> None:
                     post_position(
                         args.utm_url, args.utm_key, args.map_id,
                         rc[0], rc[1], estimate.confidence,
-                        estimate.x, estimate.y, 1.3 + random.uniform(-0.2, 0.2)
+                        estimate.x, estimate.y, args.z + random.uniform(-0.2, 0.2)
                     )
                 else:
                     print(f"  → Cannot parse cell id: {best_point.point_id}")
